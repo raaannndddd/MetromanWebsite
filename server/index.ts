@@ -45,8 +45,8 @@ async function startServer() {
   const server = createServer(app);
 
   // Always serve from server/public (resolved from compiled dist or source)
-  const staticPath = path.resolve(__dirname, "../public");
-
+  const staticPath = path.resolve(__dirname, "../server/public");
+  console.log("[static] ", staticPath);
   app.use(express.static(staticPath));
 
   app.get("*", (_req, res) => {
