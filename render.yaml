@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: metroman-memecoin
+    env: node
+    buildCommand: echo "No build required"
+    startCommand: npx serve MetromanWebsite -l $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+
