@@ -211,6 +211,7 @@ const NAME_ALIASES = {
   'Hengshui': 'hengshui',
 
   // Wuhan
+  'Chengdu': 'chengdu',
   '武汉': 'wuhan',
   '武汉市': 'wuhan',
   'Wuhan': 'wuhan',
@@ -245,6 +246,25 @@ const NAME_ALIASES = {
   '广东': 'guangzhou',
 };
 
+// Quick CN name lookup for canonical keys (used for bilingual labels)
+const EN_ZH = {
+  hengshui:'衡水',
+  wuhan:'武汉',
+  beijing:'北京',
+  shanghai:'上海',
+  chongqing:'重庆',
+  hainan:'海南',
+  shandong:'山东',
+  shanxi:'山西',
+  yunnan:'云南',
+  chengdu:'成都',
+  guangzhou:'广州',
+  dongbei:'东北',
+  germany:'德国',
+  america:'美国',
+  xinjiang:'新疆',
+};
+
 // ===================== CREDIT MAP (with views) =====================
 const DEFAULT_THUMBNAIL = 'https://www.bilibili.com/video/BV1HgnpzqE9B/?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2206419-fjhdv.1761061468478.533';
 
@@ -256,7 +276,7 @@ const VIDEO_CREDIT_MAP = {
   shanxi:   { link: 'https://www.bilibili.com/video/BV1NjHAzREbL?spm_id_from=333.788.recommend_more_video.-1', views: 70000,    views_str: '70K',  title: 'Shanxi',   thumbnail: DEFAULT_THUMBNAIL },
   xinjiang: { link: 'https://www.bilibili.com/video/BV1eFxEzxEHh/?spm_id_from=333.788.player.player_end_recommend_autoplay',   views: 45000,    views_str: '45K',  title: 'Xinjiang', thumbnail: DEFAULT_THUMBNAIL },
   yunnan:   { link: 'https://www.bilibili.com/video/BV1WmxgzHENV?spm_id_from=333.788.recommend_more_video.0',                  views: 84000,    views_str: '84K',  title: 'Yunnan',   thumbnail: DEFAULT_THUMBNAIL },
-  chengdu:  { link: 'https://www.bilibili.com/video/BV1hmtQzJEPm/?spm_id_from=333.337.search-card.all.click',                  views: 10000000, views_str: '10M',  title: 'Chengdu',  thumbnail: DEFAULT_THUMBNAIL },
+  chengdu:  { link: 'https://www.bilibili.com/video/BV1UK4uzWE8b',                  views: 6420000, views_str: '6.40M',  title: 'Chengdu',  thumbnail: DEFAULT_THUMBNAIL },
   hainan:   { link: 'https://www.bilibili.com/video/BV17Z4NzAEvr/?spm_id_from=333.788.recommend_more_video.0&trackid=web_related_0.router-related-2206419-xc9bj.1761060390499.481', views: 47000, views_str: '47K', title: 'Hainan', thumbnail: DEFAULT_THUMBNAIL },
   beijing:  { link: 'https://www.bilibili.com/video/BV1JtxDz4EKT/',                                                             views: 6610000,  views_str: '6.61M', title: 'Beijing',  thumbnail: DEFAULT_THUMBNAIL },
   chongqing:{ link: 'https://www.bilibili.com/video/BV1iQx4zXE2A/?spm_id_from=333.337.search-card.all.click',                  views: 68000,    views_str: '68K',  title: 'Chongqing',thumbnail: DEFAULT_THUMBNAIL },
@@ -321,6 +341,17 @@ function lookupCredit(label) {
   const trimmed = zhTrimAdminSuffix(raw);
   const key = NAME_ALIASES[trimmed] || NAME_ALIASES[raw] || trimmed.toLowerCase();
   return VIDEO_CREDIT_MAP[key] || null;
+}
+
+// Capitalize helper
+const cap = s => (s && s.length) ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
+// === NEW: bilingual label helper (always "中文 English") ===
+function bilingualLabel(key, rawName) {
+  const cnCandidate = zhTrimAdminSuffix(rawName || EN_ZH[key] || '');
+  const enCandidate = VIDEO_CREDIT_MAP[key]?.title || cap(String(key));
+  if (cnCandidate && enCandidate) return `${cnCandidate} ${enCandidate}`;
+  return cnCandidate || enCandidate || String(key);
 }
 
 // ===================== MODAL (respect user mute + hide toggles) =====================
@@ -442,16 +473,16 @@ window.addEventListener('resize', ()=> map.invalidateSize());
 fetch(CITY_CODE_URL)
   .then(r=>r.json())
   .then(async json=>{
-    for(const p of json.areas || []){
+    for (const p of json.areas || []) {
       const name = p.name;
       const code = String(p.code);
 
       const res = await fetch(`${CITY_FILES_DIR}/${code}.json`).catch(()=>null);
-      if(!res || !res.ok) continue;
+      if (!res || !res.ok) continue;
 
       const fc = await res.json();
       const prov = dissolveFeatures(fc.features);
-      if(!prov) continue;
+      if (!prov) continue;
 
       provinceOutlineByCode.set(code, prov);
 
@@ -469,25 +500,28 @@ fetch(CITY_CODE_URL)
         layer.eachLayer(l => l.bringToFront && l.bringToFront());
       }
 
-      if(hasVideo){
+      if (hasVideo) {
         const c = featureCenter(prov.features[0]);
-        if(c){
-          const key = vidInfo.label;
-          L.marker(c, { icon: M_ICON(28, key), title: name })
-            .addTo(markers)
-            .bindTooltip(name, { permanent: false, direction: 'top', offset: [0, -10], className: 'video-label' })
+        if (c) {
+          const key = vidInfo.label; // canonical key like 'wuhan'
+          const label = bilingualLabel(key, name);
+          const m = L.marker(c, { icon: M_ICON(28, key), title: label });
+          m._mmKey = key; // ✅ tag the marker with its key for later lookup
+          m.addTo(markers)
+            .bindTooltip(label, { permanent: false, direction: 'top', offset: [0, -10], className: 'video-label' })
             .on('click', ()=> playVideo(vidInfo.src, key));
           placedKeys.add(key);
         }
       }
     }
 
-    // Extra overlays/regions
+    // === EXTRA REGIONS ===
     drawDongbei();
     addGermany();
     addAmerica();
     highlightHengshui();
     highlightWuhan();
+
   });
 
 // ===================== 东北 (Liaoning+Jilin+Heilongjiang) =====================
@@ -501,11 +535,13 @@ function drawDongbei(){
 
   const c=featureCenter(merged.features[0]);
   if(c){
-    L.marker(c,{icon:M_ICON(30,'dongbei'),title:'东北 Dongbei'})
+    const key='dongbei';
+    const label=bilingualLabel(key, EN_ZH[key]);
+    L.marker(c,{icon:M_ICON(30,key),title:label})
       .addTo(markers)
-      .bindTooltip('Dongbei',{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
-      .on('click',()=>playVideo('videos/dongbei.mp4','dongbei'));
-    placedKeys.add('dongbei');
+      .bindTooltip(label,{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
+      .on('click',()=>playVideo('videos/dongbei.mp4',key));
+    placedKeys.add(key);
   }
 }
 
@@ -515,11 +551,13 @@ function addGermany(){
     L.geoJSON(fc,{style:{color:YELLOW,weight:2,fillColor:YELLOW,fillOpacity:0.45}, pane:'video-provs'}).addTo(provinces);
     const c=featureCenter(fc.features[0]);
     if(c){
-      L.marker(c,{icon:M_ICON(30,'germany'),title:'Deutschland'})
+      const key='germany';
+      const label=bilingualLabel(key, EN_ZH[key]);
+      L.marker(c,{icon:M_ICON(30,key),title:label})
         .addTo(markers)
-        .bindTooltip('Germany',{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
-        .on('click',()=>playVideo('videos/german.mp4','germany'));
-      placedKeys.add('germany');
+        .bindTooltip(label,{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
+        .on('click',()=>playVideo('videos/german.mp4',key));
+      placedKeys.add(key);
     }
   });
 }
@@ -558,11 +596,13 @@ function addAmerica(){
       L.geoJSON(mainPoly,{style:{color:YELLOW,weight:2,fillColor:YELLOW,fillOpacity:0.45}, pane:'video-provs'}).addTo(provinces);
 
       const center=featureCenter(mainPoly)||L.latLng(37.1,-95.7);
-      L.marker(center,{icon:M_ICON(30,'america'),title:'America'})
+      const key='america';
+      const label=bilingualLabel(key, EN_ZH[key]);
+      L.marker(center,{icon:M_ICON(30,key),title:label})
         .addTo(markers)
-        .bindTooltip('America',{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
-        .on('click',()=>playVideo('videos/america.mp4','america'));
-      placedKeys.add('america');
+        .bindTooltip(label,{permanent:false,direction:'top',offset:[0,-10],className:'video-label'})
+        .on('click',()=>playVideo('videos/america.mp4',key));
+      placedKeys.add(key);
     })
     .catch(err=>console.error('Failed to load america.json',err));
 }
@@ -609,7 +649,15 @@ function ensureVideoMarker(key, lat, lng, labelOverride) {
   if (placedKeys.has(key)) return;
   const vid = VIDEO_MAP[key];
   if (!vid) return;
-  const label = labelOverride || key;
+
+  // Try to get CN from override (strip admin suffix), else from EN_ZH
+  let cn = '';
+  if (labelOverride) {
+    const beforeSpace = String(labelOverride).split(/\s+/)[0];
+    cn = zhTrimAdminSuffix(beforeSpace);
+  }
+  const label = bilingualLabel(key, cn || EN_ZH[key] || labelOverride);
+
   L.marker([lat, lng], { icon: M_ICON(28, key), title: label })
     .addTo(markers)
     .bindTooltip(label, { permanent: false, direction: 'top', offset: [0, -10], className: 'video-label' })
@@ -620,11 +668,12 @@ function ensureVideoMarker(key, lat, lng, labelOverride) {
 // ===================== HENGSHUI =====================
 function highlightHengshui() {
   const code = '131100';
-  const label = '衡水 Hengshui';
+  const key  = 'hengshui';
+  const labelCN = EN_ZH[key]; // '衡水'
 
   const cached = provinceOutlineByCode.get(code);
   if (cached?.features?.length) {
-    drawHengshuiFromFC(cached, label);
+    drawHengshuiFromFC(cached, bilingualLabel(key, labelCN));
     return;
   }
 
@@ -633,7 +682,7 @@ function highlightHengshui() {
     .then(fc => {
       if (fc?.features?.length) {
         const prov = dissolveFeatures(fc.features) || fc;
-        drawHengshuiFromFC(prov, label);
+        drawHengshuiFromFC(prov, bilingualLabel(key, labelCN));
         return;
       }
       return fetch(`${CITY_FILES_DIR}/130000.json`)
@@ -641,14 +690,14 @@ function highlightHengshui() {
         .then(hb => {
           const sub = findSubFeatureByName(hb, ['衡水市', '衡水', 'Hengshui']);
           if (sub?.features?.length) {
-            drawHengshuiFromFC(sub, label);
+            drawHengshuiFromFC(sub, bilingualLabel(key, labelCN));
             return;
           }
-          ensureVideoMarker('hengshui', 37.738, 115.670, label);
+          ensureVideoMarker(key, 37.738, 115.670, labelCN);
         });
     })
     .catch(() => {
-      ensureVideoMarker('hengshui', 37.738, 115.670, label);
+      ensureVideoMarker(key, 37.738, 115.670, labelCN);
     });
 }
 
@@ -667,11 +716,12 @@ function drawHengshuiFromFC(fc, label) {
 // ===================== WUHAN =====================
 function highlightWuhan() {
   const code = '420100';
-  const label = '武汉 Wuhan';
+  const key  = 'wuhan';
+  const labelCN = EN_ZH[key]; // '武汉'
 
   const cached = provinceOutlineByCode.get(code);
   if (cached?.features?.length) {
-    drawWuhanFromFC(cached, label);
+    drawWuhanFromFC(cached, bilingualLabel(key, labelCN));
     return;
   }
 
@@ -680,7 +730,7 @@ function highlightWuhan() {
     .then(fc => {
       if (fc?.features?.length) {
         const prov = dissolveFeatures(fc.features) || fc;
-        drawWuhanFromFC(prov, label);
+        drawWuhanFromFC(prov, bilingualLabel(key, labelCN));
         return;
       }
       return fetch(`${CITY_FILES_DIR}/420000.json`)
@@ -688,14 +738,14 @@ function highlightWuhan() {
         .then(hubei => {
           const sub = findSubFeatureByName(hubei, ['武汉市', '武汉', 'Wuhan']);
           if (sub?.features?.length) {
-            drawWuhanFromFC(sub, label);
+            drawWuhanFromFC(sub, bilingualLabel(key, labelCN));
             return;
           }
-          ensureVideoMarker('wuhan', 30.5928, 114.3055, label);
+          ensureVideoMarker(key, 30.5928, 114.3055, labelCN);
         });
     })
     .catch(() => {
-      ensureVideoMarker('wuhan', 30.5928, 114.3055, label);
+      ensureVideoMarker(key, 30.5928, 114.3055, labelCN);
     });
 }
 
@@ -1089,6 +1139,19 @@ function initSliderTimeline() {
   const trackFill = rangeWrap ? rangeWrap.querySelector('.rt-fill') : null;
 
   const labels = ['Nov 2010', 'Mar 2024', 'Aug 2025', 'Oct 2025'];
+  // Build marks so they align with the slider's real 0%..100% endpoints
+  const marksWrap = root.querySelector('.rt-marks');
+  if (marksWrap) {
+    marksWrap.innerHTML = '';
+    labels.forEach((txt, i) => {
+      const span = document.createElement('span');
+      span.className = 'rt-mark' + (i === 0 ? ' edge-start' : (i === labels.length - 1 ? ' edge-end' : ''));
+      span.textContent = txt;
+      const pct = (i / (labels.length - 1)) * 100;   // 0, 33.333..., 66.666..., 100
+      span.style.left = pct + '%';
+      marksWrap.appendChild(span);
+    });
+  }
 
   // Fix the slider near the bottom of the window (not touching)
   const sliderEl = root.querySelector('.rt-slider');
@@ -1186,3 +1249,182 @@ document.addEventListener('DOMContentLoaded', initSliderTimeline);
 
 
 document.addEventListener('DOMContentLoaded', initSliderTimeline);
+
+// ===================== I18N: EN <-> ZH Toggle =====================
+(function initI18N() {
+  const BTN = document.getElementById('langToggle');
+  const ICON = document.getElementById('langIcon');
+  if (!BTN || !ICON) return;
+
+  // Utility to mark elements once with original text so we can restore on toggle
+  function storeOriginal(el, prop = 'textContent') {
+    if (!el) return;
+    if (el.dataset.i18nOrig == null) el.dataset.i18nOrig = (el[prop] ?? '').trim();
+  }
+  function restoreOriginal(el, prop = 'textContent') {
+    if (!el) return;
+    if (el.dataset.i18nOrig != null) el[prop] = el.dataset.i18nOrig;
+  }
+
+  // Map of elements to translate. Each entry: [selector, property, zhText]
+  // NOTE: We store originals on first run; when switching back to EN we restore.
+  const targets = [
+    // Navbar
+    ['.nav-links a[href="#about"]', 'textContent', '传说'],
+    ['.nav-links a[href="#roadmap"]', 'textContent', '路线图'],
+    ['.nav-links a[href="#howtobuy"]', 'textContent', '联系我们'],
+    ['.nav-links .nav-disabled:nth-of-type(1)', 'textContent', '画廊（敬请期待）'],
+    ['.nav-links .nav-disabled:nth-of-type(2)', 'textContent', '头像生成器（敬请期待）'],
+    ['.nav-links .nav-disabled:nth-of-type(3)', 'textContent', '肛塞寻宝（敬请期待）'],
+
+    // Contract label
+    ['.contract-address .ca-label', 'textContent', '合约：'],
+
+    // Map legend
+    ['#mapLegend .legend-item:nth-child(1) span', 'textContent', '100万+ 次观看'],
+    ['#mapLegend .legend-item:nth-child(2) span', 'textContent', '少于 100万 次观看'],
+
+    // Sections titles
+    ['#about h1', 'textContent', '传说'],
+    ['#roadmap h1', 'textContent', '路线图'],
+    ['#howtobuy h1', 'textContent', '联系我们'],
+
+    // About timeline slider marks (bottom labels)
+    ['#aboutTimeline .rt-marks span:nth-child(1)', 'textContent', '2010年11月'],
+    ['#aboutTimeline .rt-marks span:nth-child(2)', 'textContent', '2024年3月'],
+    ['#aboutTimeline .rt-marks span:nth-child(3)', 'textContent', '2025年8月'],
+    ['#aboutTimeline .rt-marks span:nth-child(4)', 'textContent', '2025年10月'],
+
+    // About timeline cards (titles + bodies)
+    ['#card-t1 h3', 'textContent', '超前的英雄'],
+    ['#card-t1 p', 'textContent', '大都会超人（Metroman）由布拉德·皮特配音，是《超级大坏蛋》与《超级大坏蛋2》中的英雄，也是梦工厂最具代表性的角色之一。2010年11月上映的首部电影全球票房超过3.61亿美元，在Z世代童年记忆中留下深刻印记。超人的设定与张力远超时代，为随后十年的动画超级英雄定下了新标杆。'],
+
+    ['#card-t2 h3', 'textContent', '烂到极致便是神'],
+    ['#card-t2 p', 'textContent', '14年后，《超级大坏蛋2》（2024）以6%的烂番茄新低“出圈”，并非靠口碑而是靠梗文化复活。它“烂”得超越批评，成为网络恶搞的神作：二创与迷因层出不穷，观众在吐槽中狂欢，把影院失利变成了互联网的狂欢祭。'],
+
+    ['#card-t3 h3', 'textContent', '从扑街到爆红——英语圈的病毒式传播'],
+    ['#card-t3 p', 'textContent', '最初只有几秒的“超人舞”，在英语互联网迅速走红。剪辑与鬼畜洗版YouTube与TikTok，夸张其“神级律动”与“稳如泰山”气场。很快，它从玩笑变成线下潮流，派对与漫展纷纷复刻动作。相关视频累计播放已超千万，Metroman不只是梗，而是“超级梗”。'],
+
+    ['#card-t4 h3', 'textContent', '中国接力'],
+    ['#card-t4 p', 'textContent', '10月，一段“超人劈公交”的中文配音在社媒炸裂，引发全国范围的省份方言二创风潮，只有本地人才真正懂梗。无数视频破圈、甚至激发了Cosplay复刻。此刻，Metroman正处于迷因巅峰，开始“国家级”接管。'],
+
+    // Roadmap phase labels and text (shortened to keep it readable)
+    ['#roadmap .phase-card[data-phase="1"] .phase-label', 'textContent', '阶段一：社区建设'],
+    ['#roadmap .phase-card[data-phase="1"] p', 'textContent', '万物起于人。通过透明、信任与梗文化，连接中英双语社群，用创意与幽默搭桥，汇聚早期信徒，打牢社交土壤。'],
+
+    ['#roadmap .phase-card[data-phase="2"] .phase-label', 'textContent', '阶段二：持续打磨'],
+    ['#roadmap .phase-card[data-phase="2"] p', 'textContent', '强化代币实用性、升级网站、上线互动小游戏（BNB奖励）。从“梗”成长为可持续的生态，让玩家、持有者与粉丝持续参与。'],
+
+    ['#roadmap .phase-card[data-phase="3"] .phase-label', 'textContent', '阶段三：营销与扩张'],
+    ['#roadmap .phase-card[data-phase="3"] p', 'textContent', '通过联动、病毒传播与配音合作，铺满整张“Metroman地图”。把他从加密圈带向更广阔的互联网文化。'],
+
+    ['#roadmap .phase-card[data-phase="4"] .phase-label', 'textContent', '阶段四：全球统治'],
+    ['#roadmap .phase-card[data-phase="4"] p', 'textContent', '传奇升空，BNB随风而来。Metroman渗透梗、音乐、服饰与数字艺术，成为“用幽默连接世界”的象征。'],
+
+    // Contact section
+    ['#howtobuy .x-link', 'aria-label', '前往 Metroman 的 X 页面'],
+
+    // Modal
+    ['#modalTitle', 'textContent', '播放中…'],
+    ['#modalCredit #creditText', 'textContent', '在哔哩哔哩观看'],
+
+    // Age gate
+    ['#ageDesc', 'textContent', '本网站包含可能涉及毒品、性行为、性侵犯、兽交、恐同、种族歧视或性别歧视等内容。'],
+    ['.age-danger', 'textContent', '这不是一个适合儿童的网站。'],
+    ['.age-instruction', 'textContent', '按下 Enter 或点击确认您已年满18岁。'],
+    ['#ageContinue', 'textContent', '我已年满18岁'],
+    ['.age-hint', 'textContent', '按回车键 ↵'],
+
+    // Toggle ARIA labels
+    ['#floatToggle', 'title', '切换漂浮物'],
+    ['#musicToggle', 'title', '切换背景音乐'],
+    ['#langToggle', 'title', '切换语言'],
+  ];
+
+  // Translate attribute helper
+  function setProp(el, prop, value) {
+    if (!el) return;
+    if (prop === 'textContent') el.textContent = value;
+    else el.setAttribute(prop, value);
+  }
+
+  function applyZH() {
+    targets.forEach(([sel, prop, zh]) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      // Store original before overwriting
+      if (prop === 'textContent') storeOriginal(el, 'textContent'); else storeOriginal(el, 'data-'+prop);
+      setProp(el, prop, zh);
+    });
+
+    // Update slider ARIA text to Chinese
+    const slider = document.getElementById('tlSlider');
+    if (slider) {
+      slider.setAttribute('aria-valuetext', '2010年11月');
+    }
+
+    // Legend icon alts (optional)
+    const premiumAlt = document.querySelector('.map-legend .legend-item:nth-child(1) img');
+    const normalAlt  = document.querySelector('.map-legend .legend-item:nth-child(2) img');
+    if (premiumAlt) premiumAlt.alt = '高级 M（100万+ 次观看）';
+    if (normalAlt)  normalAlt.alt  = '普通 M（少于 100万 次观看）';
+
+    // Button face: show “EN” when Chinese is active
+    const ICON = document.getElementById('langIcon');
+    if (ICON) ICON.textContent = 'EN';
+    BTN.setAttribute('aria-label', '切换为英文');
+    document.documentElement.setAttribute('lang', 'zh-CN');
+  }
+
+  function applyEN() {
+    targets.forEach(([sel, prop]) => {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      restoreOriginal(el, prop === 'textContent' ? 'textContent' : ('data-'+prop));
+      if (prop !== 'textContent' && el.dataset.i18nOrig != null) {
+        // restore attribute
+        el.setAttribute(prop, el.dataset.i18nOrig);
+      }
+    });
+
+    // Slider ARIA text back to original (best effort)
+    const slider = document.getElementById('tlSlider');
+    if (slider) {
+      slider.setAttribute('aria-valuetext', 'Nov 2010');
+    }
+
+    // Legend alts best effort
+    const premiumAlt = document.querySelector('.map-legend .legend-item:nth-child(1) img');
+    const normalAlt  = document.querySelector('.map-legend .legend-item:nth-child(2) img');
+    if (premiumAlt && premiumAlt.dataset.i18nOrig) premiumAlt.alt = premiumAlt.dataset.i18nOrig;
+    if (normalAlt  && normalAlt.dataset.i18nOrig)  normalAlt.alt  = normalAlt.dataset.i18nOrig;
+
+    // Button face: show “中” when English is active
+    const ICON = document.getElementById('langIcon');
+    if (ICON) ICON.textContent = '中';
+    BTN.setAttribute('aria-label', 'Switch to Chinese');
+    document.documentElement.setAttribute('lang', 'en');
+    // Explicit EN fallbacks for Phase labels (prevents empty text on toggle back)
+const EN_PHASE_LABELS = [
+    ['#roadmap .phase-card[data-phase="1"] .phase-label', 'Phase 1 – Community Building:'],
+    ['#roadmap .phase-card[data-phase="2"] .phase-label', 'Phase 2 – Continual Development:'],
+    ['#roadmap .phase-card[data-phase="3"] .phase-label', 'Phase 3 – Marketing & Expansion:'],
+    ['#roadmap .phase-card[data-phase="4"] .phase-label', 'Phase 4 – Global Domination:'],
+];
+
+  }
+
+  function setLang(lang) {
+    if (lang === 'zh') applyZH(); else applyEN();
+    localStorage.setItem('metroman_lang', lang);
+  }
+
+  // Initialize, honoring saved preference
+  const saved = localStorage.getItem('metroman_lang');
+  if (saved === 'zh') setLang('zh'); else setLang('en');
+
+  BTN.addEventListener('click', () => {
+    const current = localStorage.getItem('metroman_lang') || 'en';
+    setLang(current === 'zh' ? 'en' : 'zh');
+  });
+})();

@@ -19,6 +19,68 @@ html {
   scroll-behavior: smooth;         /* smooth anchor scrolling */
 }
 
+/* === THEME ROOTS === */
+:root {
+  --bg: #0b0b0d;
+  --text: #eaeaea;
+  --muted: #a1a1aa;
+  --card: #121216;
+  --border: #2a2a2f;
+}
+
+.theme-light {
+  --bg: #ffffff;
+  --text: #0b0b0d;
+  --muted: #4b5563;
+  --card: #f6f7f9;
+  --border: #e5e7eb;
+}
+
+/* Page background (dark vs white.png) */
+body {
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color .25s ease, color .25s ease;
+}
+
+.theme-light body,
+body.theme-light {
+  background: #fff url("./images/white.png") center/cover fixed no-repeat;
+}
+
+/* Example elements you likely use */
+.navbar, .panel, .card, .modal-content {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Leaflet tooltips stay readable on both themes */
+.leaflet-tooltip.video-label {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* Icon button look (optional) */
+.nav-btn {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+  transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.nav-btn:hover { background: rgba(127,127,127,.12); }
+
+/* If you have a legend panel */
+#mapLegend {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+
 /* Allow vertical scrolling, but visually hide scrollbars cross-browser */
 body {
   min-height: 100%;
@@ -49,6 +111,8 @@ body::before {
   background: url('./images/black_background.png') center / cover no-repeat;
   opacity: 1;
 }
+
+
 
 /* Optional subtle vignette over the background image */
 body::after {
@@ -165,6 +229,44 @@ body.intro-active .map-frame {
   animation: sweep-lr 4.5s cubic-bezier(.2,.6,.2,1) infinite;
 }
 @keyframes sweep-lr { to { transform: translateX(120%); } }
+/* === MAP LEGEND (bottom-left corner) === */
+.map-legend {
+  position: absolute;
+  bottom: 18px;
+  left: 22px;                        /* moved from right → left */
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 214, 10, 0.25);
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: opacity 0.4s ease;
+  opacity: 0.6;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-icon {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(255, 214, 10, 0.3));
+}
+
+.map-legend:hover {
+  opacity: 1;
+}
 
 /* ==================== TOOLTIP ==================== */
 .leaflet-tooltip.video-label {
@@ -361,6 +463,35 @@ body.gate-active .music-toggle {
   pointer-events: none;
 }
 
+/* ==== Language Toggle (bottom-right, above float/music) ==== */
+.lang-toggle {
+  position: fixed;
+  right: 18px; bottom: 138px;          /* sits above the float toggle (78px) */
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,214,10,0.35);
+  background: rgba(10,10,10,0.55);
+  backdrop-filter: blur(8px) saturate(1.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 12px rgba(255,214,10,0.08) inset;
+  display: grid; place-items: center;
+  cursor: pointer; z-index: 12050;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 300ms ease;
+  font-weight: 800;
+  color: #ffd60a;
+}
+.lang-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.55), 0 0 16px rgba(255,214,10,0.12) inset;
+}
+/* Hide while video modal is open (match other toggles) */
+body.video-open .lang-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+
+
 /* ===== CONTRACT ADDRESS (top-right) ===== */
 .contract-address {
   position: absolute;
@@ -458,20 +589,33 @@ body.gate-active .music-toggle {
   letter-spacing: 0.2px;
 }
 /* Give each major section a visual center guide (subtle, optional) */
-.section::before,
-.map-frame::before {
-  /* keep your existing sweep animation on .map-frame::before intact by not overriding it */
-  /* This second pseudo is a separate anchor hint – super subtle dashed line */
+/* Keep the guide on sections only */
+.section::before {
   content: "";
   position: absolute;
   left: 50%;
   top: 0;
   bottom: 0;
   width: 0;
-  border-left: 0 dotted rgba(255,214,10,0.12); /* visually minimal */
+  border-left: 0 dotted rgba(255,214,10,0.12);
   transform: translateX(-50%);
   pointer-events: none;
 }
+
+/* If you also want a guide on the map, use ::after so ::before stays the scanner */
+.map-frame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 0 dotted rgba(255,214,10,0.12);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 570; /* below the sweep (which uses z-index: 580) */
+}
+
 
 /* Ensure sections truly act like full pages (you already have similar) */
 .section {
@@ -1462,4 +1606,417 @@ body.gate-active .music-toggle {
   }
 }
 
+/* === Exact alignment for slider date labels === */
+#about .slider-timeline .rt-marks {
+  position: relative;
+  display: block;               /* override earlier grid */
+  height: 18px;
+  margin-top: 2px;
+}
+
+#about .slider-timeline .rt-marks .rt-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);  /* default for middle marks */
+  white-space: nowrap;
+  font-size: 12px;
+  color: #cfcfcf;
+  letter-spacing: 0.25px;
+  text-shadow: 0 0 10px rgba(255,214,10,0.10);
+  pointer-events: none;
+}
+
+#about .slider-timeline .rt-marks .rt-mark.edge-start {
+  transform: translateX(0);     /* flush-left at 0% */
+  text-align: left;
+}
+
+#about .slider-timeline .rt-marks .rt-mark.edge-end {
+  transform: translateX(-100%); /* flush-right at 100% */
+  text-align: right;
+}
+
+/* === Inset edge cards (first & last) 40px inward === */
+
+
+/* Default transform uses -50%; introduce an overridable shift var */
+#about .slider-timeline .rt-card {
+  --edgeShift: 0px;
+}
+
+/* Move only the edge cards inward 40px */
+#about .slider-timeline .rt-card[data-for="t1"] { --edgeShift: 80px; }   /* left edge -> push right */
+#about .slider-timeline .rt-card[data-for="t4"] { --edgeShift: -80px; }  /* right edge -> push left */
+
+/* Apply the shift both in default and open states (override any earlier transforms) */
+#about .slider-timeline .rt-card,
+#about .slider-timeline .rt-card.is-open {
+  transform: translateX(calc(-50% + var(--edgeShift))) translateY(0) !important;
+}
+
+
+
+/* === Make timeline cards 40% wider, ignoring parent constraints === */
+#about .slider-timeline .rt-card {
+  width: 30%;                /* 40% wider than original */
+  max-width: none !important; /* ignore any previous max-width */
+  overflow: visible !important; /* allow content to extend beyond parent */
+  z-index: 10;                /* keep it above nearby elements */
+}
+/* Roadmap video: right-side, consistent with your spacing */
+#roadmap { position: relative; }
+
+.roadmap-side-video {
+  position: fixed;              /* stick to viewport */
+  bottom: 140px;                /* move up 100 px from window bottom */
+  right: 80px;                  /* keep same right spacing */
+  width: min(840px, 60vw);      /* responsive width */
+  aspect-ratio: 16 / 9;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.roadmap-side-video canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+
+
+
+/* Make space so text doesn’t run under the video on large screens */
+@media (min-width: 1000px) {
+  #roadmap .roadmap-grid {
+    max-width: calc(100% - 460px); /* account for the video width + gap */
+  }
+}
+
+/* On smaller screens, hide (or shrink) the side video */
+@media (max-width: 999px) {
+  .roadmap-side-video {
+    position: static;
+    width: 100%;
+    margin: 14px 0 0;
+    pointer-events: none;
+  }
+}
+
+/* === Highlighted phase label inside roadmap text === */
+#roadmap .roadmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* 🔥 tighter spacing between phases */
+  margin-top: 40px;
+  margin-bottom: 80px;
+  position: relative;
+  margin-top: -80px;   
+  margin-left: -120px;
+  scale: 0.8;
+}
+
+/* Each roadmap phase card */
+#roadmap .phase-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px 28px;
+  border-left: 3px solid #ffd60a;
+  border-radius: 6px;
+  line-height: 1.6;
+  max-width: 900px;
+  animation: fadeUp 0.8s ease forwards;
+}
+
+/* Gold phase label */
+#roadmap .phase-label {
+  display: block;
+  color: #ffd60a;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* === Yellow connector line between cards === */
+#roadmap .phase-card:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  bottom: -10px; /* small gap before next card */
+  left: 28px;    /* aligns with text start */
+  width: calc(100% - 56px); /* matches padding (28px * 2) */
+  height: 2px;
+  background: linear-gradient(to right, #ffd60a, transparent 90%);
+  opacity: 0.8;
+}
+
+/* Subtle hover glow for interactivity */
+#roadmap .phase-card:hover {
+  background: rgba(255, 214, 10, 0.05);
+  box-shadow: 0 0 10px rgba(255, 214, 10, 0.15);
+  transform: translateY(-2px);
+  transition: all 0.3s ease;
+}
+
+/* Fade-up entry animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* For single-column view (mobile), keep spacing generous */
+@media (max-width: 860px) {
+  #roadmap .phase-card {
+    margin-bottom: clamp(60px, 8vw, 100px);
+  }
+}
+/* === CONTACT SECTION: Centered X logo === */
+/* CONTACT: match Lore/Roadmap title position exactly */
+.section--contact {
+  position: relative;
+  /* make it behave like the other sections */
+  display: block;                 /* was flex */
+  min-height: 100vh;
+  padding: 96px 24px 40px;        /* same as .section */
+  background: url('images/black_wallpaper.jpg') center/cover no-repeat fixed;
+  border-top: 1px solid rgba(255, 214, 10, 0.18);  /* matches your other sections */
+}
+
+/* Use the same heading rules the other sections get */
+.section--contact h1 {
+  /* no extra alignment overrides here — let .section h1 styles apply */
+  margin: 0 0 12px;               /* matches .section h1 */
+  font-size: clamp(28px, 4vw, 44px);
+  color: #ffd60a;
+  letter-spacing: 0.3px;
+}
+
+/* Keep the X logo perfectly centered, independent of the title */
+.section--contact .x-link {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  animation: floatX 4s ease-in-out infinite;
+}
+
+.section--contact .x-logo {
+  width: 160px;
+  height: auto;
+  filter: drop-shadow(0 0 18px rgba(255,214,10,0.4));
+  transition: transform 0.35s ease, filter 0.35s ease;
+  cursor: pointer;
+}
+.section--contact .x-logo:hover {
+  transform: translateY(-4px) scale(1.1);
+  filter: drop-shadow(0 0 30px rgba(255,214,10,0.8));
+}
+
+@keyframes floatX {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50%      { transform: translate(-50%, -50%) translateY(-10px); }
+}
+
+/* === Navbar disabled (coming soon) items === */
+.nav-links .nav-disabled {
+  color: #777;                      /* grey tone */
+  opacity: 0.7;
+  cursor: default;
+  pointer-events: none;             /* disables clicks */
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.25px;
+  position: relative;
+  transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+/* Optional subtle "coming soon" hover glow (visual only) */
+.nav-links .nav-disabled:hover {
+  opacity: 0.9;
+  color: #999;
+}
+
+/* Keep spacing consistent with clickable nav items */
+.nav-links li {
+  list-style: none;
+  display: inline-block;
+  margin: 0 10px;
+}
+/* === Brand Logo: Futuristic Highlight === */
+.brand-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 18px;
+  transition: transform 0.4s ease;
+}
+
+.brand-wrap:hover {
+  transform: scale(1.08) rotate(3deg);
+}
+
+/* The logo image itself */
+.brand-img {
+  z-index: 2;
+  filter: drop-shadow(0 0 8px rgba(255, 214, 10, 0.5))
+          drop-shadow(0 0 20px rgba(255, 214, 10, 0.35));
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+/* Animated ring behind the logo */
+.brand-ring {
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 214, 10, 0.25) 0%,
+    rgba(255, 214, 10, 0.05) 70%,
+    transparent 100%
+  );
+  filter: blur(2px);
+  z-index: 1;
+  animation: brandPulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glowing pulse animation */
+@keyframes brandPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+/* Extra pop on hover */
+.brand-wrap:hover .brand-img {
+  filter: drop-shadow(0 0 12px rgba(255, 214, 10, 0.7))
+          drop-shadow(0 0 28px rgba(255, 214, 10, 0.55));
+}
+.brand-wrap::after {
+  content: "";
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 214, 10, 0.0),
+    rgba(255, 214, 10, 0.15),
+    rgba(255, 214, 10, 0.0)
+  );
+  animation: spinAura 6s linear infinite;
+  z-index: 0;
+  filter: blur(4px);
+  pointer-events: none;
+}
+@keyframes spinAura { to { transform: rotate(360deg); } }
+
+.lore-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  justify-content: center;
+  align-items: center;
+  width: 80%;
+  max-width: 1000px;
+  margin: 60px auto 0;
+  position: relative;
+  z-index: 3;
+}
+
+.lore-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 12px;
+  opacity: 0.9;
+  filter: grayscale(0.3) brightness(0.85);
+  transition: opacity 0.6s ease, transform 0.6s ease, filter 0.6s ease;
+}
+
+.lore-img.fade {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+/* === Chengdu Crown Marker === */
+
+/* ==== Language Toggle (bottom-right, above float/music) ==== */
+.lang-toggle {
+  position: fixed;
+  right: 18px; bottom: 138px;          /* sits above the float toggle (78px) */
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,214,10,0.35);
+  background: rgba(10,10,10,0.55);
+  backdrop-filter: blur(8px) saturate(1.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 12px rgba(255,214,10,0.08) inset;
+  display: grid; place-items: center;
+  cursor: pointer; z-index: 12050;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 300ms ease;
+  font-weight: 800;
+  color: #ffd60a;
+}
+.lang-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.55), 0 0 16px rgba(255,214,10,0.12) inset;
+}
+/* Hide while video modal is open (match other toggles) */
+body.video-open .lang-toggle {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+/* ==================== Chinese (zh) fixes for Roadmap ==================== */
+/* Use a CJK-first font stack so Chinese doesn't render smaller */
+html[lang^="zh"] body {
+  font-family: "Noto Sans SC","PingFang SC","Microsoft YaHei",
+               "Hiragino Sans GB","Heiti SC",
+               "Penumbra Sans Std","Segoe UI",Roboto,sans-serif !important;
+}
+
+/* The grid currently uses scale: .8 and negative margins — reset in zh */
+html[lang^="zh"] #roadmap .roadmap-grid {
+  scale: 1 !important;
+  margin-top: 16px !important;   /* was -80px */
+  margin-left: 0 !important;     /* was -120px */
+}
+
+/* Give the title a little more breathing room in zh */
+html[lang^="zh"] #roadmap h1 {
+  margin-bottom: 18px;           /* prevents overlap */
+}
+
+/* Make paragraph text slightly larger and more relaxed for CJK */
+html[lang^="zh"] #roadmap .phase-card {
+  line-height: 1.9;
+  font-size: 1.02rem;
+}
+
+/* Safer wrapping for long Chinese lines (doesn't add visible hyphens) */
+html[lang^="zh"] #roadmap .phase-card p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Keep the yellow label readable and on its own line */
+html[lang^="zh"] #roadmap .phase-label {
+  display: block;
+  margin-bottom: 6px;
+  white-space: normal;
+}
 
